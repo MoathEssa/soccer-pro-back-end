@@ -1,0 +1,103 @@
+﻿🎯 GOAL  
+You are an AI code generator. I need to spin up a new feature in my Clean‑Architecture ASP.NET Core Web API, complete end‑to‑end, using MediatR, FluentValidation, AutoMapper, ADO.NET repositories, service layer, and a controller.
+
+---
+
+### GIVEN  
+- **FeatureName**: `<FeatureName>`  
+- **Properties** (one per line):  
+  - `<Type> <PropertyName>` [validation rules]  
+  - …  
+
+---
+
+### REQUIREMENTS  
+
+> **IF any of these files already exist, append only the new method or registration—do not recreate the entire file.**
+
+1. **If the feature does not exist, generate all of the following** (each in its own markdown code block):  
+   1. **Add<FeatureName>Command.cs**  
+   2. **Add<FeatureName>CommandHandler.cs**  
+   3. **Add<FeatureName>CommandValidator.cs**  
+   4. **Add<FeatureName>DTO.cs**  
+   5. **<FeatureName>Profile.cs**  
+   6. **I<FeatureName>Services.cs**  
+   7. **<FeatureName>Services.cs**  
+   8. **I<FeatureName>Repository.cs**  
+   9. **<FeatureName>Repository.cs**  
+   10. **<FeatureName>Controller.cs**
+
+2. **If the feature already exists**, append only the new or missing parts—methods, registrations, endpoints—to the existing files rather than recreating them.
+
+---
+
+#### File details:
+
+- **Add<FeatureName>Command.cs**  
+  - Namespace: `SoccerPro.Application.Features.<FeatureName>Feature.Commands.Add<FeatureName>`  
+  - `public record Add<FeatureName>Command(Add<FeatureName>DTO dto) : IRequest<ApiResponse<bool>>`  
+  - Property: `public Add<FeatureName>DTO Add<FeatureName>DTO { get; set; } = dto;`
+
+- **Add<FeatureName>CommandHandler.cs**  
+  - Implements `IRequestHandler<Add<FeatureName>Command, ApiResponse<bool>>`  
+  - Injects `I<FeatureName>Services` & `IMapper`  
+  - Maps DTO → domain, calls `Add<FeatureName>Async(...)`, returns `ApiResponseHandler.Build(...)`
+
+- **Add<FeatureName>CommandValidator.cs**  
+  - Inherits `AbstractValidator<Add<FeatureName>DTO>`  
+  - `RuleFor(...)` for each property per validation rules
+
+- **Add<FeatureName>DTO.cs**  
+  - Namespace: `SoccerPro.Application.DTOs.<FeatureName>DTOs`  
+  - Class with exactly the listed properties
+
+- **<FeatureName>Profile.cs**  
+  - Namespace: `SoccerPro.Application.Common.Mapping`  
+  - Inherits `Profile`  
+  - `CreateMap<Add<FeatureName>DTO, <FeatureName>>()` mapping all fields
+
+- **I<FeatureName>Services.cs** (`SoccerPro.Application.Services.IServices`)  
+  - Method: `Task<Result<bool>> Add<FeatureName>Async(<FeatureName> entity);`
+
+- **<FeatureName>Services.cs** (`SoccerPro.Application.Services`)  
+  - Implements `I<FeatureName>Services`, injects `I<FeatureName>Repository` & `IMapper`, returns `Result<bool>`
+
+- **I<FeatureName>Repository.cs** (`SoccerPro.Domain.Repositories`)  
+  - Method: `Task<bool> Add<FeatureName>Async(<FeatureName> entity);`
+
+- **<FeatureName>Repository.cs** (`SoccerPro.Infrastructure.Repositories`)  
+  - Implements `I<FeatureName>Repository` using ADO.NET (`IDbConnection`) to perform SQL INSERT
+
+- **<FeatureName>Controller.cs** (`SoccerPro.API.Controllers`)  
+  - Inherits `AppController`, injects `IMediator`, adds `[HttpPost("add-<featureName>")]` endpoint invoking `Add<FeatureName>Command`
+
+---
+
+#### FetchPlayerById Feature:
+
+1. **FetchPlayerByIdQuery.cs**  
+   - Namespace: `SoccerPro.Application.Features.PlayerFeature.Queries.FetchPlayerById`  
+   - `public record FetchPlayerByIdQuery(int PlayerId) : IRequest<ApiResponse<PlayerDTO>>`
+
+2. **FetchPlayerByIdQueryHandler.cs**  
+   - Implements `IRequestHandler<FetchPlayerByIdQuery, ApiResponse<PlayerDTO>>`  
+   - Injects `IPlayerServices`  
+   - Calls `GetPlayerByIdAsync(...)`, returns `ApiResponseHandler.Build(...)`
+
+3. **PlayerController.cs**  
+   - Adds `[HttpGet("fetch/{id}")]` endpoint invoking `FetchPlayerByIdQuery`  
+   - Includes `SwaggerOperation` attributes for API documentation  
+   - Returns consistent response pattern with `StatusCode`
+
+---
+
+**IMPORTANT:**  
+- Use correct `using` statements (`MediatR`, `FluentValidation`, `AutoMapper`, `System.Data`, `Microsoft.Data.SqlClient`, your `ApiResponse`/`ResultPattern` namespaces, etc.).  
+- Follow folder & namespace conventions exactly.  
+- Output only the requested code blocks—no extra explanations.
+
+---
+### ADDITIONAL INSTRUCTION
+
+- Ensure that DTOs for queries are created and registered in their respective profiles.
+- Always validate that mappings in profiles are complete and accurate.

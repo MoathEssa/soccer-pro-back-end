@@ -1,0 +1,4 @@
+﻿{
+  "appService.defaultWebAppToDeploy": "undefined/subscriptions/7904421a-29ac-494d-9e4e-206391f7dc50/resourceGroups/web-apis/providers/Microsoft.Web/sites/SoccerPro",
+  "appService.deploySubpath": "."
+}
