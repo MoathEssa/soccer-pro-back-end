@@ -1,6 +1,6 @@
 # SoccerPro — Tournament Management System API
 
-A production-grade RESTful API for managing university-level soccer operations: tournaments, teams, players, match scheduling, live match recording, and role-based administration. Built with .NET 9, Clean Architecture, and CQRS — deployed to Azure with Key Vault–managed secrets and containerized hosting.
+A production-grade RESTful API for managing university-level soccer operations: tournaments, teams, players, match scheduling, live match recording, and role-based administration. Built with .NET 9, Clean Architecture, and CQRS — deployed to Azure App Service with CI/CD via GitHub Actions and infrastructure-as-code via Bicep.
 
 ---
 
@@ -31,19 +31,20 @@ SoccerPro is a backend system designed to digitize and centralize the full lifec
 
 ## Tech Stack
 
-| Layer | Technology | Rationale |
-|---|---|---|
-| **Runtime** | .NET 9 | Latest LTS-adjacent framework; top-tier performance for API workloads |
-| **API** | ASP.NET Core Web API | Convention-based controllers, built-in DI, middleware pipeline |
-| **Auth** | ASP.NET Identity + JWT Bearer | Industry-standard identity management with stateless token auth |
-| **CQRS / Mediator** | MediatR 12 | Decouples controllers from business logic; enables cross-cutting pipeline behaviors |
-| **Validation** | FluentValidation 11 | Declarative, testable input validation with automatic MediatR integration |
-| **ORM / Data Access** | EF Core 9 (Identity) + Raw ADO.NET / Dapper | EF Core for Identity schema; raw SQL + stored procedures for performance-critical tournament queries |
-| **Database** | SQL Server | Stored procedures, table-valued parameters, SQL views, and output parameters for complex transactional operations |
-| **Mapping** | AutoMapper | Convention-based DTO ↔ Entity mapping reduces boilerplate |
-| **Secrets** | Azure Key Vault + DefaultAzureCredential | Zero secrets in source code; managed identity–based access to connection strings and JWT signing keys |
-| **Docs** | Swagger / Swashbuckle | Auto-generated OpenAPI spec with JWT security scheme and XML doc comments |
-| **Containerization** | Docker (Linux) | Environment-variable port binding; Azure container-ready deployment |
+| Layer                 | Technology                                  | Rationale                                                                                                         |
+| --------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Runtime**           | .NET 9                                      | Latest LTS-adjacent framework; top-tier performance for API workloads                                             |
+| **API**               | ASP.NET Core Web API                        | Convention-based controllers, built-in DI, middleware pipeline                                                    |
+| **Auth**              | ASP.NET Identity + JWT Bearer               | Industry-standard identity management with stateless token auth                                                   |
+| **CQRS / Mediator**   | MediatR 12                                  | Decouples controllers from business logic; enables cross-cutting pipeline behaviors                               |
+| **Validation**        | FluentValidation 11                         | Declarative, testable input validation with automatic MediatR integration                                         |
+| **ORM / Data Access** | EF Core 9 (Identity) + Raw ADO.NET / Dapper | EF Core for Identity schema; raw SQL + stored procedures for performance-critical tournament queries              |
+| **Database**          | SQL Server                                  | Stored procedures, table-valued parameters, SQL views, and output parameters for complex transactional operations |
+| **Mapping**           | AutoMapper                                  | Convention-based DTO ↔ Entity mapping reduces boilerplate                                                         |
+| **Secrets**           | GitHub Actions Secrets → Azure App Settings | Zero secrets in source code; injected at deploy time via Bicep parameters                                         |
+| **Infrastructure**    | Azure Bicep                                 | Declarative infrastructure-as-code for App Service Plan and App Service                                           |
+| **CI/CD**             | GitHub Actions                              | Automated build, Bicep deploy, and App Service publish on push to `main`                                          |
+| **Docs**              | Swagger / Swashbuckle                       | Auto-generated OpenAPI spec with JWT security scheme and XML doc comments                                         |
 
 ---
 
@@ -119,16 +120,16 @@ No raw stack traces leak to clients.
 
 Stored procedures are the backbone of all domain data operations. The API delegates complex, multi-table transactional logic to SQL Server rather than orchestrating it in application code.
 
-| Stored Procedure | Purpose | Key Technique |
-|---|---|---|
-| `SP_InsertPlayerWithMultipleContacts` | Creates a Person + Player + N contact records in one call | TVP (`ContactInfoType`) for contacts; `OUTPUT @PersonId` returned to caller |
-| `SP_InsertFullMatchRecord` | Records a complete match result — match record, shots, cards, substitutions | 3 TVPs (`ShotsOnGoalType`, `CardsViloationsType_V2`, `MatchSubstitutionsType`) in a single transactional round-trip |
-| `SP_InsertMatchRecord` | Records a match record with output ID | `OUTPUT @InsertedMatchRecoredId` for downstream inserts |
-| `SP_SearchPlayers` | Paginated, filtered player search | `OFFSET/FETCH` pagination; `OUTPUT @TotalCount` avoids a separate count query |
-| `SP_SearchMatches` | Paginated match search by tournament, phase, teams, field, date | Multi-parameter filtering with server-side pagination |
-| `SP_ScheduleMatch` | Creates a match schedule entry with validation | Enforces tournament/team/field constraints at the DB level |
-| `SP_AssignPlayerToTeam` | Assigns a player to a team with role and position | Business rule enforcement in SQL |
-| `SP_ValidatePlayerTeamsInTeam` | Validates that a set of player-team IDs belong to a given tournament team | TVP (`TVP_PlayerTeamIdList`) with return value (1 = valid, 0 = invalid) |
+| Stored Procedure                      | Purpose                                                                     | Key Technique                                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `SP_InsertPlayerWithMultipleContacts` | Creates a Person + Player + N contact records in one call                   | TVP (`ContactInfoType`) for contacts; `OUTPUT @PersonId` returned to caller                                         |
+| `SP_InsertFullMatchRecord`            | Records a complete match result — match record, shots, cards, substitutions | 3 TVPs (`ShotsOnGoalType`, `CardsViloationsType_V2`, `MatchSubstitutionsType`) in a single transactional round-trip |
+| `SP_InsertMatchRecord`                | Records a match record with output ID                                       | `OUTPUT @InsertedMatchRecoredId` for downstream inserts                                                             |
+| `SP_SearchPlayers`                    | Paginated, filtered player search                                           | `OFFSET/FETCH` pagination; `OUTPUT @TotalCount` avoids a separate count query                                       |
+| `SP_SearchMatches`                    | Paginated match search by tournament, phase, teams, field, date             | Multi-parameter filtering with server-side pagination                                                               |
+| `SP_ScheduleMatch`                    | Creates a match schedule entry with validation                              | Enforces tournament/team/field constraints at the DB level                                                          |
+| `SP_AssignPlayerToTeam`               | Assigns a player to a team with role and position                           | Business rule enforcement in SQL                                                                                    |
+| `SP_ValidatePlayerTeamsInTeam`        | Validates that a set of player-team IDs belong to a given tournament team   | TVP (`TVP_PlayerTeamIdList`) with return value (1 = valid, 0 = invalid)                                             |
 
 **Table-Valued Parameters (TVPs)** are used extensively to batch related child records into a single procedure call. For example, `SP_InsertFullMatchRecord` accepts the match scalar data alongside three structured tables — shots on goal, card violations, and substitutions — ensuring the entire match result is committed atomically.
 
@@ -149,11 +150,11 @@ Stored procedures are the backbone of all domain data operations. The API delega
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - SQL Server (local or Azure SQL)
-- Azure Key Vault (or override secrets locally)
 
 ### Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/MoathEssa/soccer-pro-back-end.git
    cd soccer-pro-back-end
@@ -161,37 +162,81 @@ Stored procedures are the backbone of all domain data operations. The API delega
 
 2. **Restore the database**
    Import the included `Soccerpro-2025-5-10-5-26.bacpac` into your SQL Server instance using SSMS or `SqlPackage`:
+
    ```bash
    sqlpackage /Action:Import /TargetServerName:localhost /TargetDatabaseName:SoccerPro /SourceFile:Soccerpro-2025-5-10-5-26.bacpac
    ```
 
 3. **Configure secrets**
 
-   **Option A — Azure Key Vault (production):**
-   Ensure your Azure identity has access to the `dbs123` Key Vault with secrets `myDB` (connection string) and `kfupm-jwt` (JWT signing key).
+   Use .NET User Secrets:
 
-   **Option B — Local development:**
-   Use .NET User Secrets to override:
    ```bash
+   cd SoccerPro.API
    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=SoccerPro;Trusted_Connection=True;TrustServerCertificate=True;"
    dotnet user-secrets set "JwtSettings:SecretKey" "your-256-bit-secret-key-here"
    ```
 
 4. **Run the API**
+
    ```bash
    cd SoccerPro.API
    dotnet run
    ```
 
 5. **Access Swagger UI**
-   Navigate to `http://localhost:8080/swagger` to explore and test all endpoints.
+   Navigate to `https://localhost:5001/swagger` to explore and test all endpoints.
 
-### Docker
+---
 
-```bash
-docker build -t soccerpro-api .
-docker run -p 8080:8080 -e PORT=8080 soccerpro-api
-```
+## Deployment
+
+Live URL: [https://soccerpro-api.azurewebsites.net/](https://soccerpro-api.azurewebsites.net/)
+
+| | |
+|---|---|
+| **Backend API** | https://soccerpro-api.azurewebsites.net/ |
+| **API Docs (Swagger)** | https://soccerpro-api.azurewebsites.net/swagger |
+
+The backend is deployed to **Azure App Service (Linux)** with infrastructure defined as code and fully automated CI/CD.
+
+| Component | Technology | Files |
+|---|---|---|
+| Infrastructure | Azure Bicep | `infra/main.bicep` |
+| CI/CD | GitHub Actions | `.github/workflows/deploy.yml` |
+| Hosting | Azure App Service (Linux, .NET 9) | Resource created by Bicep |
+| Secrets | GitHub Actions Secrets → Azure App Settings | No secrets in source control |
+
+**How it works:**
+
+1. Push to `main` triggers the GitHub Actions workflow.
+2. The workflow builds and publishes the .NET API.
+3. Bicep deploys (or updates) the App Service Plan and App Service, injecting all runtime secrets as application settings.
+4. The published artifact is deployed to Azure App Service.
+
+### Production Configuration
+
+Production secrets are never committed to source control.
+
+- **Local development** → `dotnet user-secrets` or environment variables.
+- **CI/CD & production** → GitHub Actions secrets are passed as Bicep parameters at deploy time and land as Azure App Service application settings.
+
+ASP.NET Core automatically reads App Service application settings as environment variables. Double underscores (`__`) map to nested configuration keys:
+
+| Environment Variable | Maps To |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | `ConnectionStrings:DefaultConnection` |
+| `JwtSettings__SecretKey` | `JwtSettings:SecretKey` |
+| `AppSettings__FrontendBaseUrl` | `AppSettings:FrontendBaseUrl` |
+
+### GitHub Actions Secrets
+
+| Secret | Purpose |
+|---|---|
+| `AZURE_CREDENTIALS` | Azure service principal JSON for `azure/login` |
+| `CONNECTION_STRING_DEFAULT` | SQL Server connection string |
+| `JWT_SECRET_KEY` | JWT signing key (≥ 32 characters) |
+| `FRONTEND_BASE_URL` | Deployed frontend URL (for CORS) |
 
 ---
 

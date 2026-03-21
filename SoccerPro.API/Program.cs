@@ -1,5 +1,4 @@
-﻿using Azure.Identity;
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -14,91 +13,55 @@ using SoccerPro.Infrastructure.Repository;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Data;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Use Azure-assigned port for Linux container
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://*:{port}");
+// ── Services ──────────────────────────────────────────────────────────────────
 
-Console.WriteLine("🟢 PORT = " + Environment.GetEnvironmentVariable("PORT"));
-
-
-// Enable controllers and JSON enum serialization
 builder.Services.AddControllers().AddNewtonsoftJson(options =>
 {
     options.SerializerSettings.Converters.Add(new StringEnumConverter());
 });
 
-
-
-
-// 🔐 Load from Azure Key Vault using managed identity
-string keyVaultName = "dbs123";
-string dbSecretName = "myDB";
-var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net");
-builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
-
-// ✅ Get the connection string and save it under "ConnectionStrings:DefaultConnection"
-var connStr = builder.Configuration[dbSecretName];
-
-if (string.IsNullOrWhiteSpace(connStr))
-    throw new InvalidOperationException("❌ Connection string not found in Azure Key Vault.");
-
-builder.Configuration["ConnectionStrings:DefaultConnection"] = connStr;
-
-
-
-string JWTSecretName = "kfupm-jwt";
-
-// ✅ Get the JWT Key and save it under "JwtSettings:SecretKey"
-var JWtKey = builder.Configuration[JWTSecretName];
-
-if (string.IsNullOrWhiteSpace(JWtKey))
-    throw new InvalidOperationException("❌ JWT Key not found in Azure Key Vault.");
-
-
-builder.Configuration["JwtSettings:SecretKey"] = JWtKey;
-
-
-
-// ✅ Provide ADO.NET connection (SqlConnection)
+// ADO.NET connection
 builder.Services.AddScoped<IDbConnection>(sp =>
 {
     var cs = sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection");
     return new SqlConnection(cs);
 });
 
-// ✅ Provide EF Core Identity using the same connection
+// EF Core + Identity
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
     var cs = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseSqlServer(cs);
 });
 
-// ✅ ASP.NET Identity setup
 builder.Services.AddIdentity<User, IdentityRole<int>>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-
-// Add JWT Config
-// ADD JWT Config
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JWT"));
-
-
-
-
-// Application & Infrastructure dependency injection
+// Application & Infrastructure layers
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfra();
 
-
-
-// FluentValidation setup
+// FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<AddPlayerCommandValidator>();
 
-// Swagger setup
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        var frontendUrl = builder.Configuration["AppSettings:FrontendBaseUrl"] ?? "http://localhost:5173";
+        policy
+            .WithOrigins(frontendUrl, "http://localhost:5173", "http://127.0.0.1:5173")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
+
+// Swagger
 builder.Services.AddSingleton<ISchemaFilter, FluentValidationSchemaFilter>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -112,7 +75,6 @@ builder.Services.AddSwaggerGen(options =>
     options.UseAllOfToExtendReferenceSchemas();
     options.SchemaFilter<FluentValidationSchemaFilter>();
 
-    // Add JWT auth to Swagger
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -139,12 +101,14 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// ── Middleware pipeline ───────────────────────────────────────────────────────
 
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExeptionHandlingMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
