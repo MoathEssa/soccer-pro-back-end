@@ -190,6 +190,15 @@ Stored procedures are the backbone of all domain data operations. The API delega
 
 ---
 
+## Live Demo
+
+|                        |                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------- |
+| **Backend API**        | https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/              |
+| **API Docs (Swagger)** | https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/swagger       |
+
+---
+
 ## Deployment
 
 The backend is deployed to **Azure Container Apps (free consumption tier)** with infrastructure defined as code and fully automated CI/CD.
