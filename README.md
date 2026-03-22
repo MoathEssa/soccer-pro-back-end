@@ -31,21 +31,21 @@ SoccerPro is a backend system designed to digitize and centralize the full lifec
 
 ## Tech Stack
 
-| Layer                 | Technology                                  | Rationale                                                                                                         |
-| --------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Runtime**           | .NET 9                                      | Latest LTS-adjacent framework; top-tier performance for API workloads                                             |
-| **API**               | ASP.NET Core Web API                        | Convention-based controllers, built-in DI, middleware pipeline                                                    |
-| **Auth**              | ASP.NET Identity + JWT Bearer               | Industry-standard identity management with stateless token auth                                                   |
-| **CQRS / Mediator**   | MediatR 12                                  | Decouples controllers from business logic; enables cross-cutting pipeline behaviors                               |
-| **Validation**        | FluentValidation 11                         | Declarative, testable input validation with automatic MediatR integration                                         |
-| **ORM / Data Access** | EF Core 9 (Identity) + Raw ADO.NET / Dapper | EF Core for Identity schema; raw SQL + stored procedures for performance-critical tournament queries              |
-| **Database**          | SQL Server                                  | Stored procedures, table-valued parameters, SQL views, and output parameters for complex transactional operations |
-| **Mapping**           | AutoMapper                                  | Convention-based DTO ↔ Entity mapping reduces boilerplate                                                         |
+| Layer                 | Technology                                      | Rationale                                                                                                         |
+| --------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Runtime**           | .NET 9                                          | Latest LTS-adjacent framework; top-tier performance for API workloads                                             |
+| **API**               | ASP.NET Core Web API                            | Convention-based controllers, built-in DI, middleware pipeline                                                    |
+| **Auth**              | ASP.NET Identity + JWT Bearer                   | Industry-standard identity management with stateless token auth                                                   |
+| **CQRS / Mediator**   | MediatR 12                                      | Decouples controllers from business logic; enables cross-cutting pipeline behaviors                               |
+| **Validation**        | FluentValidation 11                             | Declarative, testable input validation with automatic MediatR integration                                         |
+| **ORM / Data Access** | EF Core 9 (Identity) + Raw ADO.NET / Dapper     | EF Core for Identity schema; raw SQL + stored procedures for performance-critical tournament queries              |
+| **Database**          | SQL Server                                      | Stored procedures, table-valued parameters, SQL views, and output parameters for complex transactional operations |
+| **Mapping**           | AutoMapper                                      | Convention-based DTO ↔ Entity mapping reduces boilerplate                                                         |
 | **Secrets**           | GitHub Actions Secrets → Container App env vars | Zero secrets in source code; injected at deploy time via Bicep parameters                                         |
-| **Infrastructure**    | Azure Bicep                                 | Declarative infrastructure-as-code for Container Apps Environment                                                 |
-| **CI/CD**             | GitHub Actions                              | Automated Docker build, push to ghcr.io, Bicep deploy on push to `main`                                          |
-| **Hosting**           | Azure Container Apps (free consumption)     | Serverless container hosting with $0 cost for demo workloads                                                      |
-| **Docs**              | Swagger / Swashbuckle                       | Auto-generated OpenAPI spec with JWT security scheme and XML doc comments                                         |
+| **Infrastructure**    | Azure Bicep                                     | Declarative infrastructure-as-code for Container Apps Environment                                                 |
+| **CI/CD**             | GitHub Actions                                  | Automated Docker build, push to ghcr.io, Bicep deploy on push to `main`                                           |
+| **Hosting**           | Azure Container Apps (free consumption)         | Serverless container hosting with $0 cost for demo workloads                                                      |
+| **Docs**              | Swagger / Swashbuckle                           | Auto-generated OpenAPI spec with JWT security scheme and XML doc comments                                         |
 
 ---
 
@@ -194,13 +194,13 @@ Stored procedures are the backbone of all domain data operations. The API delega
 
 The backend is deployed to **Azure Container Apps (free consumption tier)** with infrastructure defined as code and fully automated CI/CD.
 
-| Component      | Technology                                        | Files                          |
-| -------------- | ------------------------------------------------- | ------------------------------ |
-| Infrastructure | Azure Bicep                                       | `infra/main.bicep`             |
-| CI/CD          | GitHub Actions                                    | `.github/workflows/deploy.yml` |
-| Container      | Docker → GitHub Container Registry (ghcr.io)      | `Dockerfile`                   |
-| Hosting        | Azure Container Apps (free consumption, .NET 9)   | Resource created by Bicep      |
-| Secrets        | GitHub Actions Secrets → Container App env vars   | No secrets in source control   |
+| Component      | Technology                                      | Files                          |
+| -------------- | ----------------------------------------------- | ------------------------------ |
+| Infrastructure | Azure Bicep                                     | `infra/main.bicep`             |
+| CI/CD          | GitHub Actions                                  | `.github/workflows/deploy.yml` |
+| Container      | Docker → GitHub Container Registry (ghcr.io)    | `Dockerfile`                   |
+| Hosting        | Azure Container Apps (free consumption, .NET 9) | Resource created by Bicep      |
+| Secrets        | GitHub Actions Secrets → Container App env vars | No secrets in source control   |
 
 **How it works:**
 
