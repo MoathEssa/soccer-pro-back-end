@@ -41,9 +41,10 @@ SoccerPro is a backend system designed to digitize and centralize the full lifec
 | **ORM / Data Access** | EF Core 9 (Identity) + Raw ADO.NET / Dapper | EF Core for Identity schema; raw SQL + stored procedures for performance-critical tournament queries              |
 | **Database**          | SQL Server                                  | Stored procedures, table-valued parameters, SQL views, and output parameters for complex transactional operations |
 | **Mapping**           | AutoMapper                                  | Convention-based DTO ↔ Entity mapping reduces boilerplate                                                         |
-| **Secrets**           | GitHub Actions Secrets → Azure App Settings | Zero secrets in source code; injected at deploy time via Bicep parameters                                         |
-| **Infrastructure**    | Azure Bicep                                 | Declarative infrastructure-as-code for App Service Plan and App Service                                           |
-| **CI/CD**             | GitHub Actions                              | Automated build, Bicep deploy, and App Service publish on push to `main`                                          |
+| **Secrets**           | GitHub Actions Secrets → Container App env vars | Zero secrets in source code; injected at deploy time via Bicep parameters                                         |
+| **Infrastructure**    | Azure Bicep                                 | Declarative infrastructure-as-code for Container Apps Environment                                                 |
+| **CI/CD**             | GitHub Actions                              | Automated Docker build, push to ghcr.io, Bicep deploy on push to `main`                                          |
+| **Hosting**           | Azure Container Apps (free consumption)     | Serverless container hosting with $0 cost for demo workloads                                                      |
 | **Docs**              | Swagger / Swashbuckle                       | Auto-generated OpenAPI spec with JWT security scheme and XML doc comments                                         |
 
 ---
@@ -191,52 +192,46 @@ Stored procedures are the backbone of all domain data operations. The API delega
 
 ## Deployment
 
-Live URL: [https://soccerpro-api.azurewebsites.net/](https://soccerpro-api.azurewebsites.net/)
+The backend is deployed to **Azure Container Apps (free consumption tier)** with infrastructure defined as code and fully automated CI/CD.
 
-| | |
-|---|---|
-| **Backend API** | https://soccerpro-api.azurewebsites.net/ |
-| **API Docs (Swagger)** | https://soccerpro-api.azurewebsites.net/swagger |
-
-The backend is deployed to **Azure App Service (Linux)** with infrastructure defined as code and fully automated CI/CD.
-
-| Component | Technology | Files |
-|---|---|---|
-| Infrastructure | Azure Bicep | `infra/main.bicep` |
-| CI/CD | GitHub Actions | `.github/workflows/deploy.yml` |
-| Hosting | Azure App Service (Linux, .NET 9) | Resource created by Bicep |
-| Secrets | GitHub Actions Secrets → Azure App Settings | No secrets in source control |
+| Component      | Technology                                        | Files                          |
+| -------------- | ------------------------------------------------- | ------------------------------ |
+| Infrastructure | Azure Bicep                                       | `infra/main.bicep`             |
+| CI/CD          | GitHub Actions                                    | `.github/workflows/deploy.yml` |
+| Container      | Docker → GitHub Container Registry (ghcr.io)      | `Dockerfile`                   |
+| Hosting        | Azure Container Apps (free consumption, .NET 9)   | Resource created by Bicep      |
+| Secrets        | GitHub Actions Secrets → Container App env vars   | No secrets in source control   |
 
 **How it works:**
 
 1. Push to `main` triggers the GitHub Actions workflow.
-2. The workflow builds and publishes the .NET API.
-3. Bicep deploys (or updates) the App Service Plan and App Service, injecting all runtime secrets as application settings.
-4. The published artifact is deployed to Azure App Service.
+2. The workflow builds a Docker image and pushes it to GitHub Container Registry (free).
+3. Bicep deploys (or updates) the Container Apps Environment and Container App, injecting all runtime secrets as environment variables.
+4. The container starts serving traffic at the Container Apps FQDN.
 
 ### Production Configuration
 
 Production secrets are never committed to source control.
 
 - **Local development** → `dotnet user-secrets` or environment variables.
-- **CI/CD & production** → GitHub Actions secrets are passed as Bicep parameters at deploy time and land as Azure App Service application settings.
+- **CI/CD & production** → GitHub Actions secrets are passed as Bicep parameters at deploy time and land as Container App environment variables.
 
-ASP.NET Core automatically reads App Service application settings as environment variables. Double underscores (`__`) map to nested configuration keys:
+ASP.NET Core automatically reads environment variables. Double underscores (`__`) map to nested configuration keys:
 
-| Environment Variable | Maps To |
-|---|---|
+| Environment Variable                   | Maps To                               |
+| -------------------------------------- | ------------------------------------- |
 | `ConnectionStrings__DefaultConnection` | `ConnectionStrings:DefaultConnection` |
-| `JwtSettings__SecretKey` | `JwtSettings:SecretKey` |
-| `AppSettings__FrontendBaseUrl` | `AppSettings:FrontendBaseUrl` |
+| `JwtSettings__SecretKey`               | `JwtSettings:SecretKey`               |
+| `AppSettings__FrontendBaseUrl`         | `AppSettings:FrontendBaseUrl`         |
 
 ### GitHub Actions Secrets
 
-| Secret | Purpose |
-|---|---|
-| `AZURE_CREDENTIALS` | Azure service principal JSON for `azure/login` |
-| `CONNECTION_STRING_DEFAULT` | SQL Server connection string |
-| `JWT_SECRET_KEY` | JWT signing key (≥ 32 characters) |
-| `FRONTEND_BASE_URL` | Deployed frontend URL (for CORS) |
+| Secret                      | Purpose                                        |
+| --------------------------- | ---------------------------------------------- |
+| `AZURE_CREDENTIALS`         | Azure service principal JSON for `azure/login` |
+| `CONNECTION_STRING_DEFAULT` | SQL Server connection string                   |
+| `JWT_SECRET_KEY`            | JWT signing key (≥ 32 characters)              |
+| `FRONTEND_BASE_URL`         | Deployed frontend URL (for CORS)               |
 
 ---
 

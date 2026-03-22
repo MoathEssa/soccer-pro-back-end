@@ -1,6 +1,6 @@
-// ──────────────────────────────────────────────────────────────────────────────
-// SoccerPro – Azure App Service Infrastructure (Bicep)
-// Deploy: az deployment group create -g <rg> -f infra/main.bicep -p infra/main.bicepparam
+﻿// ──────────────────────────────────────────────────────────────────────────────
+// SoccerPro – Azure Container Apps Infrastructure (Bicep)
+// Free consumption tier – $0 for portfolio / demo workloads
 // ──────────────────────────────────────────────────────────────────────────────
 
 @description('Base name used to derive all resource names (e.g. soccerpro)')
@@ -9,9 +9,8 @@ param appName string
 @description('Azure region for all resources')
 param location string = 'eastus'
 
-@description('App Service Plan SKU – F1 (free) is great for portfolio demos')
-@allowed(['F1', 'B1', 'B2', 'S1'])
-param skuName string = 'F1'
+@description('Container image to deploy (e.g. ghcr.io/moathessa/soccer-pro-back-end:latest)')
+param containerImage string
 
 // ── Secrets / App Settings (injected from GitHub Secrets) ───────────────────
 
@@ -32,77 +31,96 @@ param jwtAudience string = 'SoccerPro-client'
 @description('Frontend base URL for CORS')
 param frontendBaseUrl string = 'http://localhost:5173'
 
-// ── App Service Plan ────────────────────────────────────────────────────────
+// ── Container Apps Environment (consumption – free tier) ────────────────────
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: '${appName}-plan'
+resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: '${appName}-env'
   location: location
-  kind: 'linux'
-  sku: {
-    name: skuName
-  }
-  properties: {
-    reserved: true // required for Linux
-  }
+  properties: {}
 }
 
-// ── App Service ─────────────────────────────────────────────────────────────
+// ── Container App ───────────────────────────────────────────────────────────
 
-resource appService 'Microsoft.Web/sites@2023-12-01' = {
+resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${appName}-api'
   location: location
   properties: {
-    serverFarmId: appServicePlan.id
-    httpsOnly: true
-    siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|9.0'
-      alwaysOn: skuName != 'F1' // F1 does not support alwaysOn
-      ftpsState: 'Disabled'
-      minTlsVersion: '1.2'
-      http20Enabled: true
-      appSettings: [
-        // ── Connection Strings ──
+    managedEnvironmentId: environment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8080
+        transport: 'http'
+      }
+      secrets: [
         {
-          name: 'ConnectionStrings__DefaultConnection'
+          name: 'connection-string'
           value: connectionStringDefault
         }
-        // ── JWT ──
         {
-          name: 'JwtSettings__SecretKey'
+          name: 'jwt-secret-key'
           value: jwtSecretKey
         }
+      ]
+    }
+    template: {
+      containers: [
         {
-          name: 'JwtSettings__Issuer'
-          value: jwtIssuer
-        }
-        {
-          name: 'JwtSettings__Audience'
-          value: jwtAudience
-        }
-        {
-          name: 'JwtSettings__ExpirationMinutes'
-          value: '60'
-        }
-        {
-          name: 'JwtSettings__RefreshTokenExpirationInDays'
-          value: '7'
-        }
-        // ── App / CORS ──
-        {
-          name: 'AppSettings__FrontendBaseUrl'
-          value: frontendBaseUrl
-        }
-        // ── ASP.NET Core environment ──
-        {
-          name: 'ASPNETCORE_ENVIRONMENT'
-          value: 'Production'
+          name: 'api'
+          image: containerImage
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: [
+            // ── Connection Strings ──
+            {
+              name: 'ConnectionStrings__DefaultConnection'
+              secretRef: 'connection-string'
+            }
+            // ── JWT ──
+            {
+              name: 'JwtSettings__SecretKey'
+              secretRef: 'jwt-secret-key'
+            }
+            {
+              name: 'JwtSettings__Issuer'
+              value: jwtIssuer
+            }
+            {
+              name: 'JwtSettings__Audience'
+              value: jwtAudience
+            }
+            {
+              name: 'JwtSettings__ExpirationMinutes'
+              value: '60'
+            }
+            {
+              name: 'JwtSettings__RefreshTokenExpirationInDays'
+              value: '7'
+            }
+            // ── App / CORS ──
+            {
+              name: 'AppSettings__FrontendBaseUrl'
+              value: frontendBaseUrl
+            }
+            // ── ASP.NET Core environment ──
+            {
+              name: 'ASPNETCORE_ENVIRONMENT'
+              value: 'Production'
+            }
+          ]
         }
       ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 1
+      }
     }
   }
 }
 
 // ── Outputs ─────────────────────────────────────────────────────────────────
 
-output appServiceName string = appService.name
-output appServiceUrl string = 'https://${appService.properties.defaultHostName}'
+output containerAppName string = containerApp.name
+output containerAppUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
