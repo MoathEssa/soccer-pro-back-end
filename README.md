@@ -1,6 +1,8 @@
 # SoccerPro — Tournament Management System API
 
-A production-grade RESTful API for managing university-level soccer operations: tournaments, teams, players, match scheduling, live match recording, and role-based administration. Built with .NET 9, Clean Architecture, and CQRS — deployed to Azure App Service with CI/CD via GitHub Actions and infrastructure-as-code via Bicep.
+A production-grade RESTful API for managing university-level soccer operations: tournaments, teams, players, match scheduling, live match recording, and role-based administration. Built with .NET 9, Clean Architecture, and CQRS — deployed to Azure Container Apps with CI/CD via GitHub Actions and infrastructure-as-code via Bicep.
+
+> **Live API:** https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/ | **Swagger Docs:** https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/swagger
 
 ---
 
@@ -192,10 +194,10 @@ Stored procedures are the backbone of all domain data operations. The API delega
 
 ## Live Demo
 
-|                        |                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| **Backend API**        | https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/              |
-| **API Docs (Swagger)** | https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/swagger       |
+|                        |                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| **Backend API**        | https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/        |
+| **API Docs (Swagger)** | https://soccerpro-api.mangoground-9a8d5650.eastus.azurecontainerapps.io/swagger |
 
 ---
 
